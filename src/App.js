@@ -112,13 +112,17 @@ class App extends React.Component {
 		);
 	}
 	handleClickConnect = async event => {
-		const {address} = this.state;
-		if (!address) {
-			let accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
-			let address = accounts[0];
-			this.handleChangeAddress(address);
-		} else {
-			this.setState({address: null});
+		if (window.ethereum) {
+			const {address} = this.state;
+			if (!address) { // connect
+				let accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
+				let address = accounts[0];
+				this.handleChangeAddress(address);
+				window.ethereum.on('accountsChanged', this.handleAccountsChanged);
+			} else { // disconnect
+				this.setState({address: null});
+				window.ethereum.removeListener('accountsChanged', this.handleAccountsChanged);
+			}
 		}
 	};
 	handleChangeAddress = async address => {
@@ -160,7 +164,7 @@ class App extends React.Component {
 				balanceCake,
 			});
 		} else {
-			alert("Please connect to a wallet first!");
+			//
 		}
 	}
 	async toHarvest() {
@@ -228,19 +232,14 @@ class App extends React.Component {
 			console.log(`Error in compounding: ${e.message}`);
 		}
 	};
-	handleConnect = () => {
-		if (window.ethereum) {
-			window.ethereum.on('accountsChanged', this.handleAccountsChanged);
+	handleAccountsChanged = async accounts => {
+		try {
+			let [address] = accounts;
+			this.handleChangeAddress(address);
+		} catch(e) {
+			this.handleChangeAddress(null);
 		}
-	}
-	handleDisconnect = () => {
-		if (window.ethereum) {
-			window.ethereum.on('accountsChanged', this.handleAccountsChanged);
-		}
-	}
-	handleAccountsChanged = accounts => {
-		
-	}
+	};
 }
 cutil.extend(App.prototype, {
 	//
