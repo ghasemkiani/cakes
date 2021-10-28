@@ -6,5 +6,5 @@ This is a simple interface for some common tasks on [PancakeSwap.finance](https:
 
 Currently, some Cake Pool functions are implemented.
 
-&copy; 2021, Ghasem Kiani
+&copy; 2021, Ghasem Kiani  
 License: MIT

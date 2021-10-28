@@ -8,6 +8,7 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Button from 'react-bootstrap/Button';
+import Form from 'react-bootstrap/Form';
 import {ethers} from 'ethers';
 import {BigNumber} from 'ethers';
 
@@ -39,6 +40,8 @@ class App extends React.Component {
 		const {stakeCake} = this.state;
 		const {pendingCake} = this.state;
 		const {balanceCake} = this.state;
+		const {stakeAmount} = this.state;
+		const {unstakeAmount} = this.state;
 		return (
 			<>
 				<header>
@@ -97,6 +100,32 @@ class App extends React.Component {
 										<Button variant="primary" onClick={this.handleClickCompound}>Compound</Button>
 									</ButtonGroup>
 								</Row>
+								<h3>Stake</h3>
+								<Form>
+									<Form.Group className="mb-3" controlId="formStakeAmount1">
+										<Form.Label>Amount</Form.Label>
+										<Form.Control placeholder="0" value={stakeAmount} onChange={this.handleChangeStakeAmount} />
+									</Form.Group>
+									<Form.Group className="mb-3">
+										<Button variant="success" onClick={this.handleClickStakeBalance}>Balance</Button>
+										{' '}
+										<Button variant="success" onClick={this.handleClickStakeBalancePlusPending}>Balance + Pending</Button>
+										{' '}
+										<Button variant="primary" onClick={this.handleClickStake}>Stake</Button>
+									</Form.Group>
+								</Form>
+								<h3>Unstake</h3>
+								<Form>
+									<Form.Group className="mb-3" controlId="formUnstakeAmount1">
+										<Form.Label>Amount</Form.Label>
+										<Form.Control placeholder="0" value={unstakeAmount} onChange={this.handleChangeUnstakeAmount} />
+									</Form.Group>
+									<Form.Group className="mb-3">
+										<Button variant="success" onClick={this.handleClickUnstakeMax}>Max</Button>
+										{' '}
+										<Button variant="primary" onClick={this.handleClickUnstake}>Unstake</Button>
+									</Form.Group>
+								</Form>
 							</Col>
 						</Row>
 					</Container>
@@ -124,6 +153,7 @@ class App extends React.Component {
 				window.ethereum.removeListener('accountsChanged', this.handleAccountsChanged);
 			}
 		}
+		return true;
 	};
 	handleChangeAddress = async address => {
 		this.setState({address});
@@ -156,6 +186,9 @@ class App extends React.Component {
 			// alert(pendingCake);
 			
 			this.setState({
+				provider,
+				signer,
+				decimalsCake,
 				stakeCake_,
 				stakeCake,
 				pendingCake_,
@@ -177,7 +210,7 @@ class App extends React.Component {
 			let contractMasterchef = new ethers.Contract(addressMasterchef, abiMasterchef, provider).connect(signer);
 			
 			let tx = await contractMasterchef.leaveStaking(0);
-			
+			console.log(tx);
 			await this.toRefresh();
 		} else {
 			alert("Please connect to a wallet first!");
@@ -187,8 +220,10 @@ class App extends React.Component {
 		const {address} = this.state;
 		if (address) {
 			await this.toRefresh();
-			let {pendingCake_, balanceCake_} = this.state;
-			let totalCake_ = (BigNumber.from(pendingCake_).add(BigNumber.from(balanceCake_))).toString();
+			let {pendingCake_} = this.state;
+			// let {balanceCake_} = this.state;
+			// let totalCake_ = (BigNumber.from(pendingCake_).add(BigNumber.from(balanceCake_))).toString();
+			let totalCake_ = (BigNumber.from(pendingCake_)).toString();
 			
 			const provider = new ethers.providers.Web3Provider(window.ethereum);
 			const signer = provider.getSigner();
@@ -205,16 +240,13 @@ class App extends React.Component {
 				console.log(`Cake total_: ${totalCake_}`);
 				
 				let tx = await contractMasterchef.enterStaking(totalCake_);
-				
+				console.log(tx);
 				await this.toRefresh();
 			}
 		} else {
 			alert("Please connect to a wallet first!");
 		}
 	}
-	handleClickInfo = async event => {
-		await this.toRefresh();
-	};
 	handleClickRefresh = async event => {
 		await this.toRefresh();
 	};
@@ -238,6 +270,81 @@ class App extends React.Component {
 			this.handleChangeAddress(address);
 		} catch(e) {
 			this.handleChangeAddress(null);
+		}
+	};
+	handleChangeStakeAmount = async event => {
+		let stakeAmount = event.target.value;
+		this.setState({stakeAmount});
+	};
+	handleClickStakeBalance = async event => {
+		const {balanceCake} = this.state;
+		let stakeAmount = balanceCake;
+		this.setState({stakeAmount});
+	};
+	handleClickStakeBalancePlusPending = async event => {
+		const {decimalsCake} = this.state;
+		if (decimalsCake) {
+			const {balanceCake_} = this.state;
+			const {pendingCake_} = this.state;
+			let stakeAmount_ = (BigNumber.from(balanceCake_).add(BigNumber.from(pendingCake_))).toString();
+			let stakeAmount = ethers.utils.formatUnits(stakeAmount_, decimalsCake);
+			this.setState({stakeAmount});
+		}
+	};
+	handleClickStake = async event => {
+		const {address} = this.state;
+		if (address) {
+			const {provider} = this.state;
+			const {signer} = this.state;
+			const {decimalsCake} = this.state;
+			const {stakeAmount} = this.state;
+			let parts = stakeAmount.split(".");
+			if (parts.length === 3 && parts[2].length > decimalsCake) {
+				parts[2] = parts[2].substring(0, decimalsCake);
+			}
+			let stakeAmount_ = ethers.utils.parseUnits(parts.join("."), decimalsCake);
+			let addressMasterchef = PCS.addresses.masterchef;
+			let contractMasterchef = new ethers.Contract(addressMasterchef, abiMasterchef, provider).connect(signer);
+			let tx = await contractMasterchef.enterStaking(stakeAmount_);
+			console.log(tx);
+			await this.toRefresh();
+		} else {
+			alert("Please connect to a wallet first!");
+		}
+	};
+	handleChangeUnstakeAmount = async event => {
+		let unstakeAmount = event.target.value;
+		this.setState({unstakeAmount});
+	};
+	handleClickUnstakeMax = async event => {
+		const {address} = this.state;
+		if (address) {
+			const {decimalsCake} = this.state;
+			const {stakeCake_} = this.state;
+			let unstakeAmount_ = (BigNumber.from(stakeCake_)).toString();
+			let unstakeAmount = ethers.utils.formatUnits(unstakeAmount_, decimalsCake);
+			this.setState({unstakeAmount});
+		}
+	};
+	handleClickUnstake = async event => {
+		const {address} = this.state;
+		if (address) {
+			const {provider} = this.state;
+			const {signer} = this.state;
+			const {decimalsCake} = this.state;
+			const {unstakeAmount} = this.state;
+			let parts = unstakeAmount.split(".");
+			if (parts.length === 3 && parts[2].length > decimalsCake) {
+				parts[2] = parts[2].substring(0, decimalsCake);
+			}
+			let unstakeAmount_ = ethers.utils.parseUnits(parts.join("."), decimalsCake);
+			let addressMasterchef = PCS.addresses.masterchef;
+			let contractMasterchef = new ethers.Contract(addressMasterchef, abiMasterchef, provider).connect(signer);
+			let tx = await contractMasterchef.leaveStaking(unstakeAmount_);
+			console.log(tx);
+			await this.toRefresh();
+		} else {
+			alert("Please connect to a wallet first!");
 		}
 	};
 }
